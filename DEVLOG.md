@@ -186,5 +186,34 @@ future Makefile cleanup commit.
 
 ---
 
+## [2026-09-02] — FINDING: /dev/vtr0 cdev is already implemented in vtr_sentinel.c
+
+**Context:** Code review of `vtr_sentinel.c` during Phase 3 planning session.
+
+**Observation:** `vtr_sentinel.c` already contains a complete cdev implementation:
+- `make_dev_p()` creates `/dev/vtr0` during `MOD_LOAD`
+- `vtr_cdevsw` defines `open`, `close`, `read`, `write`, `ioctl` handlers
+- `vtr_cdev_read()` enforces the wire contract: `EMSGSIZE` if `uio_resid < 16`,
+  CRC verification before `uiomove`, non-blocking (daemon uses kqueue)
+- `vtr_cdev_write()` returns `EPERM` — unidirectional by design
+- `vtr_cdev_open()` enforces single-reader: `EBUSY` if `g_open_count > 0`
+- Rollback in `MOD_LOAD` is correct: ring → cdev → hooks, reversed on failure
+
+**Impact on Phase 3 definition:** The roadmap entry "Phase 3 — /dev/vtr0
+character device" is imprecise. The char device exists. What Phase 3 actually
+closes is:
+
+1. **Rust daemon** (`vtr-sentinel`) reading from `/dev/vtr0` via kqueue
+2. **Cross-language byte-level tests** — `EventRecord` in Rust reads exactly
+   the same 16 bytes that `vtr_event` produces in C (currently PROBABLE,
+   not CONFIRMED per VTR-METH-001 v5.1)
+3. **End-to-end pipeline test** — kmod loaded → real event → daemon reads →
+   custody chain appended → verifiable evidence
+
+**Decision:** Phase 3 description will be updated to reflect the actual
+remaining work: Rust daemon integration and cross-language contract verification,
+not char device creation.
+
+---
 *Log maintained per VTR-METH-001 v5.1 — observations recorded as facts,*
 *decisions recorded with rationale, projections marked as such.*

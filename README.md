@@ -172,7 +172,7 @@ kldunload vtr_sentinel
 |-------|--------|-------------|
 | **1 — Stub** | ✅ Complete | Module loads cleanly. Ring buffer, event wire format, CRC-32, compile-time layout assertions. |
 | **2 — Hooks** | ✅ Complete | EVENTHANDLER process hooks (exec, fork, exit). Verified on FreeBSD 14.4-RELEASE-p8: fork→exec sequence captured via direct ring buffer read (hexdump -C), wire format correct, CRC-32 intact. /dev/vtr0 char device is Phase 3. |
-| **3 — Device** | 🔲 Planned | `/dev/vtr0` character device. Userspace Rust daemon integration. |
+| **3 — Device** | 🔲 Planned | Rust daemon (`vtr-sentinel`) integration via `/dev/vtr0` (cdev already implemented). Cross-language byte-level contract verification (C↔Rust). End-to-end pipeline test: kmod → daemon → custody chain. |
 | **4 — OT Probes** | 🔲 Planned | DNP3, Modbus, and ICS-specific event detection. |
 
 ---
