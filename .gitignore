@@ -1,0 +1,9 @@
+# Artefactos de compilación FreeBSD kmod
+*.o
+*.ko
+*.depend*
+export_syms
+opt_global.h
+machine
+x86
+i386
