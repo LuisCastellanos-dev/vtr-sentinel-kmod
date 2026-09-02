@@ -10,8 +10,14 @@
  *   src/event/record.rs — EventRecord
  *   src/event/kind.rs   — EventKind, EventSeverity
  *
- * El CRC-32 usa polinomio 0xEDB88320 — mismo que Crc32::compute()
- * en record.rs. Test de contrato obligatorio antes de integrar.
+ * CRC-32 IEEE 802.3 — parámetros completos del algoritmo:
+ *   Polinomio:   0xEDB88320 (reflected)
+ *   Init:        0xFFFFFFFF
+ *   XorOut:      0xFFFFFFFF
+ *   RefIn:       true
+ *   RefOut:      true
+ * Mismo algoritmo que Crc32::compute() en record.rs.
+ * Test de contrato obligatorio antes de integrar.
  *
  * Layout (16 bytes, little-endian, sin padding):
  *   [0]      kind      — EventKind (u8)
@@ -38,15 +44,44 @@ struct vtr_event {
     uint32_t checksum;
 } __attribute__((packed));
 
-/* Verificación en compile-time — si cambia, el build falla */
+/*
+ * Verificaciones en compile-time.
+ * Cualquier cambio en el struct que altere tamaño u offsets
+ * rompe el build — las mismas propiedades deben verificarse
+ * en el lado Rust con tests cruzados (Phase 2).
+ */
 _Static_assert(
     sizeof(struct vtr_event) == 16,
     "vtr_event must be 16 bytes — must match Rust EventRecord"
 );
+_Static_assert(
+    __builtin_offsetof(struct vtr_event, kind)      == 0,
+    "vtr_event.kind must be at offset 0"
+);
+_Static_assert(
+    __builtin_offsetof(struct vtr_event, severity)  == 1,
+    "vtr_event.severity must be at offset 1"
+);
+_Static_assert(
+    __builtin_offsetof(struct vtr_event, source_id) == 2,
+    "vtr_event.source_id must be at offset 2"
+);
+_Static_assert(
+    __builtin_offsetof(struct vtr_event, pid)       == 4,
+    "vtr_event.pid must be at offset 4"
+);
+_Static_assert(
+    __builtin_offsetof(struct vtr_event, ts_delta)  == 8,
+    "vtr_event.ts_delta must be at offset 8"
+);
+_Static_assert(
+    __builtin_offsetof(struct vtr_event, checksum)  == 12,
+    "vtr_event.checksum must be at offset 12"
+);
 
 /* ── EventKind — debe coincidir con src/event/kind.rs repr(u8) ─────── */
 
-/* Familia Memory */
+/* Familia Memory — Range 0x00–0x0F */
 #define VTR_KIND_ALLOC_WITHOUT_RELEASE   0x00
 #define VTR_KIND_IOCTL_ROLLBACK_MISSING  0x01
 #define VTR_KIND_BOUNDARY_VIOLATION      0x02
@@ -54,14 +89,14 @@ _Static_assert(
 #define VTR_KIND_USE_AFTER_ERROR         0x04
 #define VTR_KIND_STACK_LAYOUT_VIOLATION  0x05
 
-/* Familia Contract */
+/* Familia Contract — Range 0x10–0x1F */
 #define VTR_KIND_IMPLICIT_CONTRACT       0x10
 #define VTR_KIND_UNTRUSTED_INPUT         0x11
 #define VTR_KIND_EXPORT_SYMBOL_IMPLICIT  0x12
 #define VTR_KIND_UNDOCUMENTED_DELEGATION 0x13
 #define VTR_KIND_STATEFUL_API_IMPLICIT   0x14
 
-/* Familia State */
+/* Familia State — Range 0x20–0x2F */
 #define VTR_KIND_STATE_CONTAMINATION     0x20
 #define VTR_KIND_SINGLETON_REUSE         0x21
 #define VTR_KIND_MUTABLE_LIMIT_EXPOSED   0x22
@@ -69,14 +104,14 @@ _Static_assert(
 #define VTR_KIND_STATE_RACE_CONDITION    0x24
 #define VTR_KIND_GLOBAL_STATE_RESIDUAL   0x25
 
-/* Familia DoS */
+/* Familia DoS — Range 0x30–0x3F */
 #define VTR_KIND_ALGORITHMIC_DOS         0x30
 #define VTR_KIND_UNBOUNDED_LOOP          0x31
 #define VTR_KIND_UNBOUNDED_RECURSION     0x32
 #define VTR_KIND_EVENT_RATE_ANOMALY      0x33
 #define VTR_KIND_MEMORY_GROWTH_ANOMALY   0x34
 
-/* Familia Provenance */
+/* Familia Provenance — Range 0x40–0x4F */
 #define VTR_KIND_PROVENANCE_BROKEN       0x40
 #define VTR_KIND_UNSEALED_DEPENDENCY     0x41
 #define VTR_KIND_HASH_MISMATCH           0x42
@@ -85,7 +120,7 @@ _Static_assert(
 #define VTR_KIND_UNSIGNED_EXECUTION      0x45
 #define VTR_KIND_POST_SEAL_MODIFICATION  0x46
 
-/* Familia Network */
+/* Familia Network — Range 0x50–0x5F */
 #define VTR_KIND_HIGH_ENTROPY_PAYLOAD    0x50
 #define VTR_KIND_DNP3_CRC_INVALID        0x51
 #define VTR_KIND_DNP3_UNKNOWN_FUNCTION   0x52
@@ -97,7 +132,7 @@ _Static_assert(
 #define VTR_KIND_DNS_LABEL_ANOMALY       0x58
 #define VTR_KIND_HTTP_ANOMALOUS_REQUEST  0x59
 
-/* Familia System */
+/* Familia System — Range 0x60–0x6F */
 #define VTR_KIND_SENTINEL_STARTED        0x60
 #define VTR_KIND_SENTINEL_STOPPED        0x61
 #define VTR_KIND_PROBE_RESTARTED         0x62
@@ -121,7 +156,7 @@ _Static_assert(
 #define VTR_SRC_TLS        0x0004
 #define VTR_SRC_HTTP       0x0005
 #define VTR_SRC_CUSTODY    0x0006
-/* Nuevos — kernel space únicamente */
+/* Kernel space únicamente */
 #define VTR_SRC_SYSCALL    0x0007
 #define VTR_SRC_VFS        0x0008
 #define VTR_SRC_PFIL       0x0009
@@ -129,9 +164,19 @@ _Static_assert(
 /* ── CRC-32 IEEE 802.3 ───────────────────────────────────────────────── */
 
 /*
- * Mismo polinomio que Crc32::compute() en record.rs: 0xEDB88320
- * Tabla precalculada en vtr_ring.c para no allocar en el hot path.
- * Declaración extern — definición en vtr_ring.c
+ * Parámetros del algoritmo (deben coincidir con ambos lados del contrato):
+ *   Polinomio:  0xEDB88320 (reflected)
+ *   Init:       0xFFFFFFFF
+ *   XorOut:     0xFFFFFFFF
+ *   RefIn:      true
+ *   RefOut:     true
+ *
+ * Responsabilidad: integridad del EventRecord.
+ * Tabla precalculada en vtr_ring.c — no alloca en el hot path.
+ * Declaración extern — definición en vtr_ring.c.
+ *
+ * Nota: vtr_ring provee bounded retention + sincronización.
+ *       El CRC pertenece al evento, no al ring.
  */
 extern const uint32_t vtr_crc32_table[256];
 
@@ -147,7 +192,6 @@ vtr_crc32(const uint8_t *data, size_t len)
 
 /*
  * Construir y verificar un vtr_event de forma portable.
- * Usa vtr_write_u*() de vtr_arch.h para garantizar alineación.
  * El checksum cubre los primeros 12 bytes — igual que Rust.
  */
 static inline void
@@ -160,7 +204,6 @@ vtr_event_build(struct vtr_event *ev,
 
     b[0] = kind;
     b[1] = severity;
-    /* source_id, pid, ts_delta en little-endian via memcpy */
     uint16_t sid_le = htole16(source_id);
     uint32_t pid_le = htole32(pid);
     uint32_t ts_le  = htole32(ts_delta);
@@ -169,7 +212,6 @@ vtr_event_build(struct vtr_event *ev,
     __builtin_memcpy(&b[4], &pid_le, 4);
     __builtin_memcpy(&b[8], &ts_le,  4);
 
-    /* CRC-32 sobre bytes [0..11] */
     uint32_t crc = vtr_crc32(b, 12);
     uint32_t crc_le = htole32(crc);
     __builtin_memcpy(&b[12], &crc_le, 4);
