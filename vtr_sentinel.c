@@ -196,9 +196,14 @@ vtr_modevent(struct module *m, int what, void *arg)
             return error;
         }
 
-        /* Paso 3: registrar hooks (vtr_hooks.c — próxima iteración) */
-        /* TODO: vtr_hooks_register() */
-        /* Si falla: destroy_dev(g_cdev); vtr_ring_destroy(&g_ring); */
+        /* Paso 3: registrar MAC policy hooks */
+        error = vtr_hooks_register(&g_ring);
+        if (error != 0) {
+            printf(VTR_MODULE_NAME ": hooks register failed: %d\n", error);
+            destroy_dev(g_cdev);
+            vtr_ring_destroy(&g_ring);
+            return error;
+        }
 
         /* Evento de génesis — primer registro de la sesión */
         g_open_count = 0;
@@ -228,7 +233,7 @@ vtr_modevent(struct module *m, int what, void *arg)
         }
 
         /* Rollback en orden inverso al load */
-        /* TODO: vtr_hooks_unregister() */
+        vtr_hooks_unregister();
         destroy_dev(g_cdev);
         vtr_ring_destroy(&g_ring);
 
