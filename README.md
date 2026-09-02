@@ -16,7 +16,7 @@
 
 **Non-intervention contract:** all handlers return `0`. They never block, never modify execution flow, and never allocate on the hot path.
 
-The module is the kernel-space half of a larger VTR telemetry pipeline. Events are structured as `vtr_event` — a 16-byte packed wire format shared with the userspace Rust daemon ([vtr-sentinel](https://github.com/LuisCastellanos-dev/vtr-sentinel)) via a binary contract enforced on both sides.
+The module is the kernel-space half of a larger VTR telemetry pipeline. Events are structured as `vtr_event` — a 16-byte packed wire format shared with the userspace Rust daemon ([vtr-sentinel](https://github.com/LuisCastellanos-dev/vtr-sentinel)) via a binary contract specified on both sides. Cross-language byte-level verification is planned (Phase 3) — the C side enforces layout at compile time via _Static_assert; Rust-side interoperability is not yet empirically verified.
 
 ---
 
@@ -49,7 +49,7 @@ The module is the kernel-space half of a larger VTR telemetry pipeline. Events a
 
 **Responsibilities:**
 
-- `vtr_event` — integrity via CRC-32 (covers bytes [0..11])
+- `vtr_event` — transmission error detection via CRC-32 (covers bytes [0..11]). CRC-32 detects accidental corruption; it does not provide cryptographic integrity or authenticity against an active adversary.
 - `vtr_ring` — bounded retention and synchronization
 - `/dev/vtr0` — kernel/userspace transport boundary (Phase 3)
 
@@ -171,7 +171,7 @@ kldunload vtr_sentinel
 | Phase | Status | Description |
 |-------|--------|-------------|
 | **1 — Stub** | ✅ Complete | Module loads cleanly. Ring buffer, event wire format, CRC-32, compile-time layout assertions. |
-| **2 — Hooks** | ✅ Complete | EVENTHANDLER process hooks (exec, fork, exit). Verified on FreeBSD 14.4-RELEASE-p8: fork→exec sequence captured in /dev/vtr0, wire format correct, CRC-32 intact. |
+| **2 — Hooks** | ✅ Complete | EVENTHANDLER process hooks (exec, fork, exit). Verified on FreeBSD 14.4-RELEASE-p8: fork→exec sequence captured via direct ring buffer read (hexdump -C), wire format correct, CRC-32 intact. /dev/vtr0 char device is Phase 3. |
 | **3 — Device** | 🔲 Planned | `/dev/vtr0` character device. Userspace Rust daemon integration. |
 | **4 — OT Probes** | 🔲 Planned | DNP3, Modbus, and ICS-specific event detection. |
 
