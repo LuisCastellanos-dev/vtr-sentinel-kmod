@@ -263,3 +263,24 @@ Classifying the contract as PROBABLE (not CONFIRMED) in Phase 2 was correct.
 
 **Result:** Cross-language wire contract is now **CONFIRMED** per VTR-METH-001 v5.1.
 All 5 cross-language tests pass. vtr-sentinel commit `2e55638`.
+
+---
+
+## [2026-09-02] — FINDING: EVFILT_READ not supported for character devices — select(2) required
+
+**Context:** Phase 3 end-to-end integration test — Rust daemon connecting to /dev/vtr0.
+
+**Observation:** openat(/dev/vtr0, O_RDONLY|O_NONBLOCK) succeeded (fd=3). kqueue() succeeded (fd=4). But kevent(EVFILT_READ) returned ERR#19 'Operation not supported by device'.
+
+Confirmed via truss:
+  openat(AT_FDCWD,"/dev/vtr0",O_RDONLY|O_NONBLOCK) = 3
+  kqueue()                                          = 4
+  kevent(4,{3,EVFILT_READ,EV_ADD|EV_ENABLE},...)   ERR#19
+
+**Root cause:** EVFILT_READ is supported for sockets, pipes, and FIFOs in FreeBSD, but not for character devices. The cdev subsystem does not implement the kqueue filter for read events.
+
+**Fix:** Replaced kqueue/EVFILT_READ with select(2) and 100ms timeout in DeviceReader::read_event(). select(2) works correctly for cdevs.
+
+**Result:** Pipeline verified end-to-end on FreeBSD 14.4-RELEASE-p8: kmod loaded -> /dev/vtr0 opened -> select() polling -> EventRecord::from_bytes() -> CustodyChain::seal() SHA-256. Daemon runs cleanly for full duration.
+
+**vtr-sentinel commit:** ca99e97
