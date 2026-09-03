@@ -217,3 +217,49 @@ not char device creation.
 ---
 *Log maintained per VTR-METH-001 v5.1 — observations recorded as facts,*
 *decisions recorded with rationale, projections marked as such.*
+
+---
+
+## [2026-09-02] — FINDING: CRC-32 lookup table had transcription errors — cross-language contract was silently broken
+
+**Context:** Phase 3 — cross-language byte-level contract verification between
+`vtr_event_build()` (C kernel module) and `EventRecord::from_bytes()` (Rust daemon).
+
+**Observation:** Cross-language tests in `vtr-sentinel` failed for genesis and
+fork events but passed for exec events. CRC computed by Rust and Python
+(`0x5387AA67` for genesis) did not match the value stored by the C module
+(`0x90860871`). The standard vector test (`crc32("123456789") == 0xCBF43926`)
+passed on all three implementations — confirming the algorithm was correct
+but the table was not.
+
+**Root cause:** `vtr_crc32_table` in `vtr_ring.c` had transcription errors
+in 10 entries across 5 rows:
+
+| Index | Incorrect    | Correct      |
+|-------|--------------|--------------|
+| 10    | `0xE0D5E91B` | `0xE0D5E91E` |
+| 13    | `0x7EB17CBF` | `0x7EB17CBD` |
+| 14    | `0xE7B82D09` | `0xE7B82D07` |
+| 15    | `0x90BF1DBD` | `0x90BF1D91` |
+| 53    | `0x21B4F928` | `0x21B4F4B5` |
+| 54    | `0x56B3C9BE` | `0x56B3C423` |
+| 95    | `0x62DD1D7F` | `0x62DD1DDF` |
+| 171   | `0xA8670955` | `0xA867DF55` |
+| 172   | `0x316658EF` | `0x316E8EEF` |
+| 173   | `0x46616879` | `0x4669BE79` |
+
+**Why exec passed and genesis/fork failed:** Whether a CRC is affected
+depends on which table indices the event bytes hit during computation.
+Exec events happened to avoid the corrupted indices. Genesis and fork
+events hit corrupted entries, producing wrong checksums.
+
+**Fix:** Table regenerated programmatically from poly `0xEDB88320`.
+Verified: `vtr_crc32("123456789", 9) == 0xCBF43926`. Committed as `f32bb11`.
+
+**Methodological note:** This is exactly the class of defect VTR-METH-001 v5.1
+exists to detect — a property declared correct that was not empirically verified.
+The cross-language byte-level tests caught the error as soon as they were executed.
+Classifying the contract as PROBABLE (not CONFIRMED) in Phase 2 was correct.
+
+**Result:** Cross-language wire contract is now **CONFIRMED** per VTR-METH-001 v5.1.
+All 5 cross-language tests pass. vtr-sentinel commit `2e55638`.
