@@ -1,0 +1,32 @@
+{
+  "artifact": "vtr_sentinel.ko",
+  "artifact_sha256": "60bc911c742a1751d0d99747ac2bc7b473368d3b370cf024f0deabbc3879ad7e",
+  "source_tree": {
+    "repo": "https://github.com/LuisCastellanos-dev/vtr-sentinel-kmod",
+    "commit": "6f2cae5",
+    "branch": "master",
+    "note": "sources transferred via tar+scp \u2014 no git history on build host"
+  },
+  "toolchain": {
+    "cc": "clang",
+    "version": "FreeBSD clang version 19.1.7 (llvmorg-19.1.7-0-gcd708029e0b2)",
+    "path": "/usr/bin/clang",
+    "sha256": "077d86fcd5f7a80e39b28962a843f4bbe50f328921672b342de71ac8d40034cc"
+  },
+  "flags": {
+    "CFLAGS": "-Wall -Wextra -Werror -Wcast-align -Wpointer-arith -Wmissing-prototypes -Wstrict-prototypes -std=c11 -O1",
+    "KMOD": "vtr_sentinel",
+    "SRCS": "vtr_sentinel.c vtr_ring.c vtr_hooks.c",
+    "note": "kmod.mk kernel flags applied by FreeBSD build system"
+  },
+  "env": {
+    "host": "FreeBSD dell-bsd 14.4-RELEASE-p8 releng/14.4-n273754-3de2d29b088e GENERIC amd64",
+    "build_dir": "/tmp/vtr-sentinel-kmod",
+    "SOURCE_DATE_EPOCH": "not set \u2014 build not reproducible-builds compliant",
+    "ccache": "not present on FreeBSD host"
+  },
+  "builder": "root@dell-bsd",
+  "timestamp_utc": "2026-09-02",
+  "r09_state": "PROBABLE",
+  "r09_note": "Manifest captured post-build, not pre-build. Toolchain SHA recorded. Reproducibility in clean snapshot not yet verified. Upgrades to CONFIRMED after clean rebuild produces same artifact_sha256."
+}
