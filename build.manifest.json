@@ -27,6 +27,12 @@
   },
   "builder": "root@dell-bsd",
   "timestamp_utc": "2026-09-02",
-  "r09_state": "PROBABLE",
-  "r09_note": "Manifest captured post-build, not pre-build. Toolchain SHA recorded. Reproducibility in clean snapshot not yet verified. Upgrades to CONFIRMED after clean rebuild produces same artifact_sha256."
+  "r09_state": "CONFIRMED",
+  "r09_note": "Clean rebuild verified 2026-09-03 in virgin directory /tmp/vtr-sentinel-kmod-clean using env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin make. Produced identical SHA-256: 60bc911c742a1751d0d99747ac2bc7b473368d3b370cf024f0deabbc3879ad7e. Build is reproducible under same toolchain and flags.",
+  "reproducibility_verified": {
+    "date_utc": "2026-09-03",
+    "method": "env -i make in virgin directory",
+    "result": "CONFIRMED",
+    "sha256_match": true
+  }
 }
