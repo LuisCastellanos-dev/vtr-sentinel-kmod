@@ -24,7 +24,7 @@
  *   [1]      severity  — EventSeverity (u8): 0=Observed,1=Probable,2=Confirmed
  *   [2..3]   source_id — SourceId (u16 LE)
  *   [4..7]   pid       — process id (u32 LE)
- *   [8..11]  ts_delta  — milliseconds desde evento anterior (u32 LE)
+ *   [8..11]  seq_delta — sequence counter since module load (u32 LE, monotonic)
  *   [12..15] checksum  — CRC-32 IEEE 802.3 de bytes [0..11] (u32 LE)
  */
 
@@ -40,7 +40,7 @@ struct vtr_event {
     uint8_t  severity;
     uint16_t source_id;
     uint32_t pid;
-    uint32_t ts_delta;
+    uint32_t seq_delta;  /* monotonic sequence counter — NOT milliseconds */
     uint32_t checksum;
 } __attribute__((packed));
 
@@ -198,7 +198,7 @@ static inline void
 vtr_event_build(struct vtr_event *ev,
                 uint8_t kind, uint8_t severity,
                 uint16_t source_id, uint32_t pid,
-                uint32_t ts_delta)
+                uint32_t seq_delta)
 {
     uint8_t *b = (uint8_t *)ev;
 
@@ -206,11 +206,11 @@ vtr_event_build(struct vtr_event *ev,
     b[1] = severity;
     uint16_t sid_le = htole16(source_id);
     uint32_t pid_le = htole32(pid);
-    uint32_t ts_le  = htole32(ts_delta);
+    uint32_t seq_le = htole32(seq_delta);
 
     __builtin_memcpy(&b[2], &sid_le, 2);
     __builtin_memcpy(&b[4], &pid_le, 4);
-    __builtin_memcpy(&b[8], &ts_le,  4);
+    __builtin_memcpy(&b[8], &seq_le, 4);
 
     uint32_t crc = vtr_crc32(b, 12);
     uint32_t crc_le = htole32(crc);

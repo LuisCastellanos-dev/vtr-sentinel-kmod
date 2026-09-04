@@ -7,7 +7,7 @@
  * Thread-safe via spinlock de vtr_arch.h.
  *
  * El tamaño VTR_RING_SIZE se define en vtr_arch.h por arquitectura:
- *   x86_64 (Pentium Silver): 2048 eventos = 32KB = L1 cache
+ *   x86_64 (Pentium Silver): 2047 eventos efectivos (VTR_RING_SIZE-1) = ~32KB = L1 cache
  *   aarch64 (Cortex-A53):   1024 eventos = 16KB
  *   arm (Cortex-M4):         256 eventos =  4KB
  */
