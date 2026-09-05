@@ -71,8 +71,8 @@ _Static_assert(
     "vtr_event.pid must be at offset 4"
 );
 _Static_assert(
-    __builtin_offsetof(struct vtr_event, ts_delta)  == 8,
-    "vtr_event.ts_delta must be at offset 8"
+    __builtin_offsetof(struct vtr_event, seq_delta) == 8,
+    "vtr_event.seq_delta must be at offset 8"
 );
 _Static_assert(
     __builtin_offsetof(struct vtr_event, checksum)  == 12,
