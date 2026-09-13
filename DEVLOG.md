@@ -284,3 +284,65 @@ Confirmed via truss:
 **Result:** Pipeline verified end-to-end on FreeBSD 14.4-RELEASE-p8: kmod loaded -> /dev/vtr0 opened -> select() polling -> EventRecord::from_bytes() -> CustodyChain::seal() SHA-256. Daemon runs cleanly for full duration.
 
 **vtr-sentinel commit:** ca99e97
+
+## [2026-09-12] — FINDING: D59140 — observe ≠ attribute in BPF/DLT_NULL path
+
+**Context:** VTR Sentinel — Phabricator revision D59140.
+FreeBSD 14.5-RELEASE (dell-bsd). Reviewed by glebius (Gleb Smirnoff, FreeBSD committer).
+
+**Observation (E_origin):**
+write(2) to BPF descriptor on lo0 returned:
+  write: Address family not supported by protocol family
+
+Reproducer: repro-bpf-sa-len.c — pkt[] without DLT_NULL header.
+
+**Original attribution:**
+bpfwrite() -> bpf_movein() sets sa_family but not sa_len.
+if_output reads sa_data without verifying sa_len >= sizeof(af).
+Proposed fix: add sa_len check in five drivers (if_disc.c, if_gif.c,
+if_loop.c, if_me.c, if_tuntap.c).
+
+**Independent review (glebius, 2026-09-12):**
+The reproducer violated the DLT_NULL contract. A write(2) on a BPF
+descriptor must prepend a 32-bit word in host byte order containing
+the address family. For IPv4: AF_INET = 2. The original pkt[] started
+directly with the IP header.
+
+bpf_ifnet_write() already ensures dst.sa_data contains the correct
+hlen bytes before calling if_output. The sa_len check in the individual
+drivers defends against a condition that cannot arise via that path.
+The contract is enforced upstream.
+
+**Falsification 1 — experimental:**
+The attribution to the kernel was falsified by independent external review.
+Classification: attribution falsified by external reviewer.
+Status: REFUTED.
+
+**Validation (E_validation):**
+Corrected reproducer (repro-bpf-sa-len-corrected.c) with AF_INET prepended:
+  0x02, 0x00, 0x00, 0x00  <- AF_INET in host byte order (DLT_NULL)
+Output: wrote 24 bytes -- DLT_NULL header correct, packet injected
+Verified locally on FreeBSD 14.5-RELEASE (dell-bsd) 2026-09-12.
+Independent reproduction by glebius confirmed prior to local run.
+
+**Falsification 2 — semantic:**
+The corrected reproducer initially retained a printf message describing
+the behavior of the original reproducer ("sa_len=0 path triggered").
+Discrepancy identified and corrected (commit 7a18745).
+Classification: semantic inconsistency between artifact and experiment state.
+Note: 7a18745 is not new experimental evidence — it is artifact integrity correction.
+
+**Methodological note:**
+This case exercised the observe ≠ attribute distinction of VTR-CE-001.
+The observation was real and reproducible. The attribution was not.
+Registered as Field Case 1 in VTR-CE-001 §12 (vtr-methodology commit 8dfddfa).
+
+**Evidence record:** reproducers/D59140/RECORD.md
+**Commits:** 7bc84a6 (initial record), 7a18745 (semantic fix), 3217a05 (RECORD.md update)
+
+**Next action:**
+Update D59140 to add MPASS(hlen <= sizeof(sa->sa_data)) in bpf_ifnet_write()
+as a hardening measure, pending confirmation from glebius on whether to update
+this revision or open a new diff.
+
+---
