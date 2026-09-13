@@ -54,7 +54,7 @@ main(int argc, char *argv[])
         if (n < 0)
                 perror("write");
         else
-                printf("wrote %zd bytes -- sa_len=0 path triggered\n", n);
+                printf("wrote %zd bytes -- DLT_NULL header correct, packet injected\n", n);
 
         close(fd);
         return 0;
