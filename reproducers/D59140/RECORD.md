@@ -26,22 +26,44 @@ hlen bytes before calling if_output. The sa_len check in the
 individual drivers defends against a condition that cannot arise
 via that path. The contract is enforced upstream.
 
-## E_origin (repro-bpf-sa-len.c)
+## Evidence chain
+
+### E_origin (repro-bpf-sa-len.c)
 pkt[] without DLT_NULL header.
 Output: write: Address family not supported by protocol family
 Role: generated the observation and the original hypothesis.
 
-## E_validation (repro-bpf-sa-len-corrected.c)
+### E_validation (repro-bpf-sa-len-corrected.c)
 pkt[] with AF_INET prepended in host byte order:
   0x02, 0x00, 0x00, 0x00  <- AF_INET little-endian
-Output: wrote 24 bytes -- sa_len=0 path triggered
+Output: wrote 24 bytes -- DLT_NULL header correct, packet injected
 Verified locally on FreeBSD 14.5-RELEASE (dell-bsd) 2026-09-12.
 Independent reproduction by glebius confirmed prior to local run.
 
 ## Falsification record
+
+### Falsification 1 — experimental
 The observation was real and reproducible.
 The attribution to the kernel was falsified by independent review.
-E_origin != E_validation: the instrument error explained the phenomenon.
+E_origin != E_validation: the instrument defect explained the phenomenon.
+Classification: attribution falsified by external reviewer.
+
+### Falsification 2 — semantic
+The corrected reproducer initially retained a printf message describing
+the behavior of the original (incorrect) reproducer:
+  "sa_len=0 path triggered"
+This message no longer corresponded to what the corrected program
+demonstrated. The discrepancy was identified and corrected (commit 7a18745).
+Classification: semantic inconsistency between artifact and experiment state.
+Note: 7a18745 is not new experimental evidence. It is a correction of
+artifact integrity — ensuring the instrument does not misrepresent
+the evidence it was corrected to produce.
+
+## Artifact integrity
+- repro-bpf-sa-len.c: E_origin — unchanged, preserved as-is
+- repro-bpf-sa-len-corrected.c: E_validation instrument
+  - pkt[] corrected: added DLT_NULL AF_INET header
+  - printf corrected (7a18745): output now reflects corrected behavior
 
 ## Next action
 Update D59140 to add MPASS(hlen <= sizeof(sa->sa_data)) in
