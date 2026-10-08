@@ -1,6 +1,6 @@
 # vtr-sentinel-kmod
 
-[![FreeBSD 14.4](https://img.shields.io/badge/FreeBSD-14.4--RELEASE--p8-red?logo=freebsd)](https://www.freebsd.org/)
+[![FreeBSD 14.5](https://img.shields.io/badge/FreeBSD-14.5--RELEASE-red?logo=freebsd)](https://www.freebsd.org/)
 [![Architecture](https://img.shields.io/badge/arch-amd64-blue)](https://github.com/LuisCastellanos-dev/vtr-sentinel-kmod)
 [![Status](https://img.shields.io/badge/status-Phase%201%20complete-yellow)](https://github.com/LuisCastellanos-dev/vtr-sentinel-kmod)
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-green)](LICENSE)
@@ -138,7 +138,7 @@ scp Makefile vtr_arch.h vtr_event.h vtr_ring.h \
 ssh root@<freebsd-host> "cd /tmp/vtr-sentinel-kmod && make 2>&1"
 ```
 
-Tested on **FreeBSD 14.4-RELEASE-p8 / amd64**.
+Tested on **FreeBSD 14.5-RELEASE / amd64**.
 
 ### Verify the build artifact
 
@@ -171,7 +171,7 @@ kldunload vtr_sentinel
 | Phase | Status | Description |
 |-------|--------|-------------|
 | **1 — Stub** | ✅ Complete | Module loads cleanly. Ring buffer, event wire format, CRC-32, compile-time layout assertions. |
-| **2 — Hooks** | ✅ Complete | EVENTHANDLER process hooks (exec, fork, exit). Verified on FreeBSD 14.4-RELEASE-p8: fork→exec sequence captured via direct ring buffer read (hexdump -C), wire format correct, CRC-32 intact. /dev/vtr0 char device is Phase 3. |
+| **2 — Hooks** | ✅ Complete | EVENTHANDLER process hooks (exec, fork, exit). Verified on FreeBSD 14.5-RELEASE: fork→exec sequence captured via direct ring buffer read (hexdump -C), wire format correct, CRC-32 intact. /dev/vtr0 char device is Phase 3. |
 | **3 — Device** | 🔲 Planned | Rust daemon (`vtr-sentinel`) integration via `/dev/vtr0` (cdev already implemented). Cross-language byte-level contract verification (C↔Rust). End-to-end pipeline test: kmod → daemon → custody chain. |
 | **4 — OT Probes** | 🔲 Planned | DNP3, Modbus, and ICS-specific event detection. |
 
@@ -184,7 +184,7 @@ Developed and validated in the **VTR three-plane lab**:
 | Plane | Node | OS |
 |-------|------|----|
 | Development | Linux Mint workstation | Linux |
-| **Experimental** | Dell bare metal (`dell-bsd`) | FreeBSD 14.4-RELEASE-p8 |
+| **Experimental** | Dell bare metal (`dell-bsd`) | FreeBSD 14.5-RELEASE |
 | Validation | Parrot OS VM | Parrot OS Echo |
 
 Nodes connected via Tailscale (site mesh, `--accept-dns=false`).
